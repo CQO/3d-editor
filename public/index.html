@@ -12,6 +12,233 @@
       <strong>We're sorry but 3d-editor doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
     </noscript>
     <div id="app"></div>
+
     <!-- built files will be auto injected -->
+
+    <script src="./script/three.js"></script>
+    <script src="./script/TransformControls.js"></script>
+
+		<script src="./script/chevrotain.min.js"></script> <!-- VRML -->
+		<script src="./script/jszip.min.js"></script>
+    <script src="./script/inflate.min.js"></script> <!-- FBX -->
+    
+    <script src="./script/loaders/AMFLoader.js"></script>
+		<script src="./script/loaders/ColladaLoader.js"></script>
+		<script src="./script/loaders/DRACOLoader.js"></script>
+		<script src="./script/loaders/FBXLoader.js"></script>
+		<script src="./script/loaders/GLTFLoader.js"></script>
+		<script src="./script/loaders/LegacyGLTFLoader.js"></script>
+		<script src="./script/loaders/KMZLoader.js"></script>
+		<script src="./script/loaders/MD2Loader.js"></script>
+		<script src="./script/loaders/OBJLoader.js"></script>
+		<script src="./script/loaders/MTLLoader.js"></script>
+		<script src="./script/loaders/PLYLoader.js"></script>
+		<script src="./script/loaders/STLLoader.js"></script>
+		<script src="./script/loaders/SVGLoader.js"></script>
+		<script src="./script/loaders/TGALoader.js"></script>
+		<script src="./script/loaders/TDSLoader.js"></script>
+		<script src="./script/loaders/VRMLLoader.js"></script>
+		<script src="./script/loaders/VTKLoader.js"></script>
+
+    <!-- 代码高亮 -->
+    <link rel="stylesheet" href="./script/codemirror/codemirror.css">
+    <link rel="stylesheet" href="./script/codemirror/theme/monokai.css">
+    <script src="./script/codemirror/codemirror.js"></script>
+    <script src="./script/codemirror/mode/javascript.js"></script>
+    <script src="./script/codemirror/mode/glsl.js"></script>
+
+    <script src="./script/Script.js"></script>
+
+    <script src="./script/libs/signals.min.js"></script>
+    <script src="./script/libs/ui.js"></script>
+    <script src="./script/libs/ui.three.js"></script>
+    
+    <script src="./script/loaders/VTKLoader.js"></script>
+
+    <script src="./script/EditorControls.js"></script>
+
+    <script src="./script/Storage.js"></script>
+    <script src="./script/Editor.js"></script>
+    <script src="./script/Config.js"></script>
+    <script src="./script/History.js"></script>
+    <script src="./script/Loader.js"></script>
+
+    <script src="./script/Toolbar.js"></script>
+
+    <script src="./script/Strings.js"></script>
+
+    <script src="./script/Viewport.js"></script>
+		<script src="./script/Viewport.Camera.js"></script>
+    <script src="./script/Viewport.Info.js"></script>
+    
+
+    <script>
+      window.URL = window.URL || window.webkitURL;
+			window.BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder;
+
+			Number.prototype.format = function (){
+				return this.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+			};
+
+			//
+
+			var editor = new Editor();
+
+			var viewport = new Viewport( editor );
+			document.body.appendChild( viewport.dom );
+
+			var toolbar = new Toolbar( editor );
+			document.body.appendChild( toolbar.dom );
+
+			var script = new Script( editor );
+			document.body.appendChild( script.dom );
+
+			var player = new Player( editor );
+			document.body.appendChild( player.dom );
+
+			var sidebar = new Sidebar( editor );
+			document.body.appendChild( sidebar.dom );
+
+			var menubar = new Menubar( editor );
+			document.body.appendChild( menubar.dom );
+
+			//
+
+			editor.setTheme( editor.config.getKey( 'theme' ) );
+
+			editor.storage.init( function () {
+
+				editor.storage.get( function ( state ) {
+
+					if ( isLoadingFromHash ) return;
+
+					if ( state !== undefined ) {
+
+						editor.fromJSON( state );
+
+					}
+
+					var selected = editor.config.getKey( 'selected' );
+
+					if ( selected !== undefined ) {
+
+						editor.selectByUuid( selected );
+
+					}
+
+				} );
+
+				//
+
+				var timeout;
+
+				function saveState( scene ) {
+
+					if ( editor.config.getKey( 'autosave' ) === false ) {
+
+						return;
+
+					}
+
+					clearTimeout( timeout );
+
+					timeout = setTimeout( function () {
+
+						editor.signals.savingStarted.dispatch();
+
+						timeout = setTimeout( function () {
+
+							editor.storage.set( editor.toJSON() );
+
+							editor.signals.savingFinished.dispatch();
+
+						}, 100 );
+
+					}, 1000 );
+
+				};
+
+				var signals = editor.signals;
+
+				signals.geometryChanged.add( saveState );
+				signals.objectAdded.add( saveState );
+				signals.objectChanged.add( saveState );
+				signals.objectRemoved.add( saveState );
+				signals.materialChanged.add( saveState );
+				signals.sceneBackgroundChanged.add( saveState );
+				signals.sceneFogChanged.add( saveState );
+				signals.sceneGraphChanged.add( saveState );
+				signals.scriptChanged.add( saveState );
+				signals.historyChanged.add( saveState );
+
+			} );
+
+			//
+
+			document.addEventListener( 'dragover', function ( event ) {
+
+				event.preventDefault();
+				event.dataTransfer.dropEffect = 'copy';
+
+			}, false );
+
+			document.addEventListener( 'drop', function ( event ) {
+
+				event.preventDefault();
+
+				editor.loader.loadFiles( event.dataTransfer.files );
+
+			}, false );
+
+			function onWindowResize( event ) {
+
+				editor.signals.windowResize.dispatch();
+
+			}
+
+			window.addEventListener( 'resize', onWindowResize, false );
+
+			onWindowResize();
+
+			//
+
+			var isLoadingFromHash = false;
+			var hash = window.location.hash;
+
+			if ( hash.substr( 1, 5 ) === 'file=' ) {
+
+				var file = hash.substr( 6 );
+
+				if ( confirm( 'Any unsaved data will be lost. Are you sure?' ) ) {
+
+					var loader = new THREE.FileLoader();
+					loader.crossOrigin = '';
+					loader.load( file, function ( text ) {
+
+						editor.clear();
+						editor.fromJSON( JSON.parse( text ) );
+
+					} );
+
+					isLoadingFromHash = true;
+
+				}
+
+			}
+
+			// ServiceWorker
+
+			if ( 'serviceWorker' in navigator ) {
+
+				try {
+
+					navigator.serviceWorker.register( 'sw.js' );
+
+				} catch ( error ) {
+
+				}
+
+			}
+    </script>
   </body>
 </html>
